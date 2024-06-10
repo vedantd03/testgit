@@ -98,6 +98,7 @@ const handleLogin = async (req, res) => {
         const match = await bcrypt.compare(pwd, foundUser.password);
         if (match) {
             const userData = {
+                _id: foundUser._id,
                 email: foundUser.email,
                 role: foundUser.role,
                 profilePic: foundUser.profilePic
