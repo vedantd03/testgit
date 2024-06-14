@@ -109,14 +109,16 @@ const handleLogin = async (req, res) => {
                 maxAge: 60 * 30 * 1000,
                 httpOnly: true,
                 secure: false,
+                sameSite: 'None',
             });
             res.cookie("refreshToken", refreshToken, {
                 path: '/',
                 maxAge: 60 * 60 * 24 * 7 * 1000,
                 httpOnly: true,
                 secure: false,
+                sameSite: 'None',
             });
-            return res.status(200).json({ message: "User Logged in Successfully"});
+            return res.status(200).json({ message: "User Logged in Successfully", userData});
         }  else {
             return res.status(401).json({ message: "Invalid Password" });
         }
@@ -193,8 +195,8 @@ const handleOAuthLogin = async (req, res) => {
         };
 
         const authorizeUrl = oAuth2Client.generateAuthUrl(authUrlOptions);
-        return res.status(200).send(authorizeUrl)
-        // return res.redirect(authorizeUrl);
+        // return res.status(200).send(authorizeUrl)
+        return res.redirect(authorizeUrl);
 
     } catch (error) {
         console.error(error);
@@ -215,12 +217,12 @@ const oAuthCallbackHandler = async (req, res) => {
         await oAuth2Client.setCredentials(tokenResponse.tokens);
         const userCredentials = oAuth2Client.credentials;
 
-        //Access token
-        const accessToken = userCredentials.id_token;
-        //Refresh Token
-        const refreshToken = userCredentials.refresh_token;
+        //Access token OAuth
+        const accessTokenOAuth = userCredentials.id_token;
+        //Refresh Token OAuth
+        const refreshTokenOAuth = userCredentials.refresh_token;
 
-        const ticket = await oAuth2Client.verifyIdToken({ idToken: accessToken, audience: process.env.CLIENT_ID });
+        const ticket = await oAuth2Client.verifyIdToken({ idToken: accessTokenOAuth, audience: process.env.CLIENT_ID });
         const payload = ticket.getPayload();
 
         const email = payload['email'];
@@ -229,28 +231,39 @@ const oAuthCallbackHandler = async (req, res) => {
         if (!foundUser) {
             return res.status(401).json({ message: "Not Authorized" });
         }
+        foundUser.profilePic = payload['picture'];
+        await foundUser.save();
         const userData = {
-            name: foundUser.name,
+            _id: foundUser._id,
             email: foundUser.email,
-            role: foundUser.role
+            role: foundUser.role,
+            profilePic: foundUser.profilePic
         }
-        const { accessTokenWeb, refreshTokenWeb } = generateTokens(userData);
-        res.cookie("accessToken", accessTokenWeb, {
+        const { accessToken, refreshToken } = await generateTokens(userData);
+        res.cookie("accessToken", accessToken, {
             path: '/',
             maxAge: 60 * 30 * 1000,
             httpOnly: true,
             secure: false,
+            sameSite: 'None',
         });
-        res.cookie("refreshToken", refreshTokenWeb, {
+        res.cookie("refreshToken", refreshToken, {
             path: '/',
             maxAge: 60 * 60 * 24 * 7 * 1000,
             httpOnly: true,
             secure: false,
+            sameSite: 'None',
         });
+        let redirectURL;
+        if (foundUser.role === 'Admin') {
+            redirectURL = process.env.CLIENT_URL + `/admin/home`;
+        } else {
+            redirectURL = process.env.CLIENT_URL + `/user/home`;
+        }
         // const encodedUserInfo = encodeURIComponent(JSON.stringify(userData));
         // const redirectURL = process.env.CLIENT_URL + `/student/details?userInfo=${encodedUserInfo}`;
-        // res.redirect(redirectURL);
-        return res.status(200).json({ message: "User Logged in Successfully", userData});
+        res.redirect(redirectURL);
+        // return res.status(200).json({ message: "User Logged in Successfully", userData});
 
     } catch (err) {
         console.log('Error in signing in with Google:', err);

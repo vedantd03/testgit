@@ -8,6 +8,7 @@ function validateEmail(email) {
 const appliedCoursesSchema = new mongoose.Schema({
     courseId: {
         type: String,
+        unique: true,
         required: [true, "Course ID is mandatory"]
     },
     completed: {
@@ -47,13 +48,13 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, "Password is mandatory"],
+        required: [true, "Password is mandatory"]
     },
     role: {
         type: String,
         enum: ["User", "Admin"],
         default: "User",
-        required: [true, "Role is mandatory"],
+        required: [true, "Role is mandatory"]
     },
     profilePic: {
         type: String,
@@ -69,14 +70,21 @@ const userSchema = new mongoose.Schema({
             return this.role === 'User';
         },
         default: function() {
-            return this.role === 'User' ? [] : null;
+            return this.role === 'User' ? [] : undefined;
+        }
+    },
+    points: {
+        type: Number,
+        default: function() {
+            return this.role === 'User' ? null : undefined;
         }
     }
 });
 
-userSchema.pre('save', function(next) {
+userSchema.pre('validate', function(next) {
     if (this.role !== 'User') {
         this.appliedCourses = undefined;
+        this.points = undefined;
     }
     next();
 });

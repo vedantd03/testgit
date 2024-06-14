@@ -6,6 +6,7 @@ const colors = require('colors');
 const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const socket = require("socket.io");
 
 const corsOptions = require('./config/corsOptions');
 const router = require('./routes/router');
@@ -32,3 +33,18 @@ const httpServer = http.createServer(app);
 httpServer.listen(PORT, (req, res) => {
     console.log(`Server running on Port ${PORT} with HTTP`.yellow.bold)
 });
+
+// const io = socket(httpServer);
+
+// io.on("connection", (socket) => {
+//     console.log("Made socket connection".cyan);
+  
+//     socket.on("disconnect", () => {
+//       console.log("Disconnected socket".red);
+//     });
+  
+//     socket.on("send-notification", (data) => {
+//       io.emit("new-notification", data);
+//     });
+  
+// });

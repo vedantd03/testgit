@@ -5,35 +5,36 @@ const User = require('../models/user');
 
 const getCurrentUser = async (req, res) => {
     try {
-        const user = req.user;
+        const user = await User.findById(req.user._id).select('-_id -password -__v -createdat').exec();
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        res.status(200).json(user);
+        return res.status(200).json(user);
     } catch (error) {
         console.error(`Error: ${error.message}`);
-        res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
+        return res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
     }
 }
 
 const getAllUsers = async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
-        const courses = await User.find()
+        const courses = await User.find({ role: 'User' })
+            .select('-_id -password -__v -createdat')
             .limit(limit * 1)
             .skip((page - 1) * limit)
             .exec();
 
         const count = await User.countDocuments();
 
-        res.status(200).json({
+        return res.status(200).json({
             courses,
             totalPages: Math.ceil(count / limit),
             currentPage: page
         });
     } catch (error) {
         console.error(`Error: ${error.message}`);
-        res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
+        return res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
     }
 }
 
@@ -50,14 +51,17 @@ const applyToCourse = async (req, res) => {
         if (!savedUser) {
             return res.status(404).json({ message: "User not found" });
         }
-
+        console.log(courseId)
         savedUser.appliedCourses.push({ courseId });
-        await savedUser.save();
+        await savedUser.save()
+        const userWithoutSensitiveFields = await User.findById(savedUser._id)
+            .select('-_id -password -__v -createdAt')
+            .lean();
 
-        res.status(200).json({ message: "Course applied successfully", savedUser });
+        return res.status(200).json({ message: "Course evaluated successfully", userWithoutSensitiveFields });
     } catch (error) {
         console.error(`Error: ${error.message}`);
-        res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
+        return res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
     }
 }
 
@@ -83,11 +87,14 @@ const evaluateCourse = async (req, res) => {
         course.completed = true;
         course.marks = marks;
         await savedUser.save();
+        const userWithoutSensitiveFields = await User.findById(savedUser._id)
+            .select('-_id -password -__v -createdAt')
+            .lean();
 
-        res.status(200).json({ message: "Course evaluated successfully", savedUser });
+        return res.status(200).json({ message: "Course evaluated successfully", userWithoutSensitiveFields });
     } catch (error) {
         console.error(`Error: ${error.message}`);
-        res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
+        return res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
     }
 }
 

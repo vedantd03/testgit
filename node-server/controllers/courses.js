@@ -7,6 +7,7 @@ const getAllCourses = async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
         const courses = await Course.find()
+            .select('-_id -__v')
             .limit(limit * 1)
             .skip((page - 1) * limit)
             .exec();
@@ -26,7 +27,7 @@ const getAllCourses = async (req, res) => {
 
 const getCourse = async (req, res) => {    
     try {
-        const course = await Course.findById(req.params.id);
+        const course = await Course.findById(req.params.id).select('-_id -__v');
         if (!course) {
             return res.status(404).json({ message: "Course not found" });
         }
