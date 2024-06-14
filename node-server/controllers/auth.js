@@ -109,16 +109,14 @@ const handleLogin = async (req, res) => {
                 maxAge: 60 * 30 * 1000,
                 httpOnly: true,
                 secure: false,
-                sameSite: 'None',
             });
             res.cookie("refreshToken", refreshToken, {
                 path: '/',
                 maxAge: 60 * 60 * 24 * 7 * 1000,
                 httpOnly: true,
                 secure: false,
-                sameSite: 'None',
             });
-            return res.status(200).json({ message: "User Logged in Successfully", userData});
+            return res.status(200).json({ message: "User Logged in Successfully", role: userData.role});
         }  else {
             return res.status(401).json({ message: "Invalid Password" });
         }
@@ -179,7 +177,7 @@ const handleTokenizedLogin = async (req, res) => {
     }
 }
 
-const handleOAuthLogin = async (req, res) => {
+const handleOAuthLoginTest = async (req, res) => {
     try {
         const redirectUrl = process.env.OAUTH_REDIRECT_URL;
         const oAuth2Client = new OAuth2Client(
@@ -260,14 +258,83 @@ const oAuthCallbackHandler = async (req, res) => {
         } else {
             redirectURL = process.env.CLIENT_URL + `/user/home`;
         }
-        // const encodedUserInfo = encodeURIComponent(JSON.stringify(userData));
-        // const redirectURL = process.env.CLIENT_URL + `/student/details?userInfo=${encodedUserInfo}`;
+        const encodedUserInfo = encodeURIComponent(JSON.stringify(userData));
+        redirectURL = redirectURL + `?userInfo=${encodedUserInfo}`;
         res.redirect(redirectURL);
         // return res.status(200).json({ message: "User Logged in Successfully", userData});
 
     } catch (err) {
         console.log('Error in signing in with Google:', err);
         return res.status(500).send('Error during authentication');
+    }
+}
+
+const handleOAuthLogin = async (req, res) => {
+    try{
+        const code = req.headers.authorization;
+        if (!code) {
+            return res.status(401).json({ message: "Not Authorized"});
+        }
+        const redirectUrl = process.env.OAUTH_REDIRECT_URL;
+        const oAuth2Client = new OAuth2Client(
+            process.env.CLIENT_ID,
+            process.env.CLIENT_SECRET,
+            redirectUrl,
+        );
+        const ticket = await oAuth2Client.verifyIdToken({ idToken: code, audience: process.env.CLIENT_ID });
+        const payload = ticket.getPayload();
+
+        const email = payload['email'];
+
+        const foundUser = await User.findOne({ email }).exec();
+        if (!foundUser) {
+            return res.status(401).json({ message: "Not Authorized" });
+        }
+        foundUser.profilePic = payload['picture'];
+        await foundUser.save();
+        const userData = {
+            _id: foundUser._id,
+            email: foundUser.email,
+            role: foundUser.role,
+            profilePic: foundUser.profilePic
+        }
+        const { accessToken, refreshToken } = await generateTokens(userData);
+        res.cookie("accessToken", accessToken, {
+            path: '/',
+            maxAge: 60 * 30 * 1000,
+            httpOnly: true,
+            secure: false,
+        });
+        res.cookie("refreshToken", refreshToken, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7 * 1000,
+            httpOnly: true,
+            secure: false,
+        });
+        return res.status(200).json({ message: "User Logged in Successfully", role: userData.role});
+    } catch (error) {
+        console.error(`Error: ${error.message}`);
+        return res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
+    }
+}
+
+const handleRefresh = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const { accessToken } = await generateAccessToken(refreshToken);
+        res.cookie("accessToken", accessToken, {
+            path: '/',
+            maxAge: 60 * 30 * 1000,
+            httpOnly: true,
+            secure: false,
+        });
+        res.status(200).json({ message: "Access Token Refreshed" });
+    } catch (error) {
+        console.error(`Error: ${error.message}`);
+        res.status(500).json({ success: false, message: `Something went wrong: ${error.message}` });
     }
 }
 
@@ -286,7 +353,9 @@ module.exports = {
     handleRegister,
     handleLogin,
     handleTokenizedLogin,
-    handleOAuthLogin,
+    handleOAuthLoginTest,
     oAuthCallbackHandler,
+    handleOAuthLogin,
+    handleRefresh,
     handleLogout
 };

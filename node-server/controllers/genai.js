@@ -19,6 +19,8 @@ const { PDFLoader } = require("@langchain/community/document_loaders/fs/pdf");
 const dotenv = require('dotenv');
 dotenv.config();
 
+const Course = require('../models/course');
+
 async function getInference(prompt){
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     const generationConfig = {
@@ -129,7 +131,7 @@ async function getRAGResponse(user_query){
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro",  generationConfig, safetySettings });
     const context = await vectorStore.similaritySearch(`${user_query}`, 3);
     const pageContents = context.map(item => item.pageContent);
-    const prompt = `Answer the user's question: ${user_query} based on the given context: ${pageContents}`;
+    const prompt = `Answer the user's question: ${user_query} based on the given context: ${pageContents}. Answer only according to the given context only`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
@@ -196,7 +198,8 @@ function fileToGenerativePart(path, mimeType) {
 
 const generateVideoQuiz = async (req, res) => {
     try {
-        const { videoLink } = req.body;
+        const course = await Course.findById(req.params.id).select('-_id -__v');
+        const videoLink  = course.videolink;
         const filePath = await getVideoFromUrl(videoLink);
         const prompt = `Given the following audio attached below, 
         generate 10 accurate Multiple Choice Questions (in English), with 4 posssible answers and also provide the 
@@ -221,7 +224,8 @@ const generateVideoQuiz = async (req, res) => {
 
 const generateVideoSummary = async (req, res) => {
     try {
-        const { videoLink } = req.body;
+        const course = await Course.findById(req.params.id).select('-_id -__v');
+        const videoLink  = course.videolink;
         if (!videoLink) {
             return res.status(400).json({ message: "Video URL is required" });
         }

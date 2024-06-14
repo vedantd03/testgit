@@ -14,8 +14,10 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage })
 
 // AUTHENTICATION ROUTES (AUTH)
-router.get("/login/oauth/google", controllerAuth.handleOAuthLogin);
+router.get("/login/oauth/google", controllerAuth.handleOAuthLoginTest);
 router.get("/session/oauth/google", controllerAuth.oAuthCallbackHandler);
+router.post("/login/oauth", controllerAuth.handleOAuthLogin);
+router.get('/refresh', controllerAuth.handleRefresh);
 
 router.post("/register", controllerAuth.handleRegister);
 router.post("/login", controllerAuth.handleLogin);
@@ -41,8 +43,8 @@ router.post('/evaluate/course', middleware.protect, controllerUsers.evaluateCour
 
 
 // GEN AI ROUTES
-router.post("/generate/quiz", middleware.protect, controllerGenAI.generateVideoQuiz);
-router.post("/generate/summary", middleware.protect, controllerGenAI.generateVideoSummary);
+router.post("/generate/quiz/:id", middleware.protect, controllerGenAI.generateVideoQuiz);
+router.post("/generate/summary/:id", middleware.protect, controllerGenAI.generateVideoSummary);
 router.post("/generate/answer", middleware.protect, middleware.authorize, controllerGenAI.generateAnswer);
 router.post("/chat", middleware.protect, controllerGenAI.haveChat);
 router.post("/chat/rag", middleware.protect, controllerGenAI.haveChatWithRAG);
